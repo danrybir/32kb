@@ -255,7 +255,7 @@ int main(int argc, char** argv) {
         running = 0;
       else if(e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_SPACE) {
         int32_t cursx = px + ox, cursy = py + oy;
-        uint64_t i = ((uint64_t)cursy << 32) | (uint32_t)cursx;
+        uint64_t i = ((uint64_t)cursx << 32) | (uint32_t)cursy;
         if(hashmap_get(map, i) == 0) {
           hashmap_put(map, i, 1);
         } else {
