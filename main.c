@@ -2,8 +2,6 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <string.h>
-#include <math.h>
 
 #define min(x, y) x > y ? y : x
 #define max(x, y) x > y ? x : y
@@ -285,19 +283,20 @@ int main(int argc, char** argv) {
       ox = 1;
       oy = 0;
     }
-    if(state[SDL_SCANCODE_UP]) {
+    // idk what im doing wrong but im doing it wrong
+    if(state[SDL_SCANCODE_UP] && get_tile(px, py - 1, map, seed) != 3) {
       py -= 1;
       cy = min(py - 4, cy);
     }
-    if(state[SDL_SCANCODE_DOWN]) {
+    if(state[SDL_SCANCODE_DOWN] && get_tile(px, py + 1, map, seed) != 3) {
       py += 1;
       cy = max(py - 11, cy);
     }
-    if(state[SDL_SCANCODE_LEFT]) {
+    if(state[SDL_SCANCODE_LEFT] && get_tile(px - 1, py, map, seed) != 3) {
       px -= 1;
       cx = min(px - 4, cx);
     }
-    if(state[SDL_SCANCODE_RIGHT]) {
+    if(state[SDL_SCANCODE_RIGHT] && get_tile(px + 1, py, map, seed) != 3) {
       px += 1;
       cx = max(px - 11, cx);
     }
