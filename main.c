@@ -1,7 +1,7 @@
 #include <SDL2/SDL.h>
 #include <stdio.h>
 #include <stdint.h>
-#include <stdlib.h>
+#include <string.h>
 #include <math.h>
 
 #define min(x, y) x > y ? y : x
@@ -53,13 +53,101 @@ float noise(float x, float y) {
   return lerp2(v00, v10, v01, v11, fx, fy);
 }
 
+// hashmap implementation because every good game needs one
+typedef enum {
+  EMPTY,
+  USED,
+  DELETED
+} EntryState;
+typedef struct {
+  uint64_t key;
+  uint64_t value;
+  EntryState state;
+} Entry;
+typedef struct {
+  Entry* entries;
+  size_t capacity;
+  size_t size;
+} HashMap;
+static void hashmap_resize(HashMap* map);
+HashMap* hashmap_create(size_t initial_capacity) {
+  HashMap* map = malloc(sizeof(HashMap));
+  map->capacity = initial_capacity;
+  map->size = 0;
+  map->entries = calloc(map->capacity, sizeof(Entry));
+  return map;
+}
+void hashmap_put(HashMap* map, uint64_t key, uint64_t value) {
+  if((double)map->size / map->capacity > 0.7) hashmap_resize(map);
+  uint64_t hash = splitmix64(key);
+  size_t idx = hash % map->capacity;
+  while(map->entries[idx].state == USED) {
+    if(map->entries[idx].key == key) {
+      map->entries[idx].value = value;
+      return;
+    }
+    idx = (idx + 1) % map->capacity;
+  }
+  map->entries[idx].key = key;
+  map->entries[idx].value = value;
+  map->entries[idx].state = USED;
+  map->size++;
+}
+uint64_t* hashmap_get(HashMap* map, uint64_t key) {
+  uint64_t hash = splitmix64(key);
+  size_t idx = hash % map->capacity;
+  while(map->entries[idx].state != EMPTY) {
+    if(map->entries[idx].state == USED && map->entries[idx].key == key)
+      return &map->entries[idx].value;
+    idx = (idx + 1) % map->capacity;
+  }
+  return NULL;
+}
+void hashmap_remove(HashMap* map, uint64_t key) {
+  uint64_t hash = splitmix64(key);
+  size_t idx = hash % map->capacity;
+  while(map->entries[idx].state != EMPTY) {
+    if(map->entries[idx].state == USED && map->entries[idx].key == key) {
+      map->entries[idx].state = DELETED;
+      map->size--;
+      return;
+    }
+    idx = (idx + 1) % map->capacity;
+  }
+}
+void hashmap_free(HashMap* map) {
+  free(map->entries);
+  free(map);
+}
+static void hashmap_resize(HashMap* map) {
+  size_t new_capacity = map->capacity * 2;
+  Entry* new_entries = calloc(new_capacity, sizeof(Entry));
+  for(size_t i = 0; i < map->capacity; i++) {
+    if(map->entries[i].state == USED) {
+      uint64_t hash = splitmix64(map->entries[i].key);
+      size_t idx = hash % new_capacity;
+      while(new_entries[idx].state == USED) idx = (idx + 1) % new_capacity;
+      new_entries[idx] = map->entries[i];
+    }
+  }
+  free(map->entries);
+  map->entries = new_entries;
+  map->capacity = new_capacity;
+}
 
 /*
   vscode color picker thing
   #e2a625ff
 */
-const unsigned long colors[] = {
-  0x000000ff, 0x1adb14ff, 0x31e4c6ff, 0xffffffff, 0x00000000, 0x168812ff, 0xe2cf25ff, 0xe2a625ff};
+const unsigned long colors[] = {0x000000ff,
+                                0x1adb14ff,
+                                0x31e4c6ff,
+                                0xffffffff,
+                                0x00000000,
+                                0x168812ff,
+                                0xe2cf25ff,
+                                0xe2a625ff,
+                                0xff0000ff};
 const unsigned char tiles[][64] = {
   {4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3, 3, 4, 4, 4, 4, 4, 3, 3, 3, 3, 4, 4, 4, 3, 3, 3, 3, 3, 3, 4,
    4, 3, 3, 3, 3, 3, 3, 4, 4, 4, 3, 3, 3, 3, 4, 4, 4, 4, 4, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4},
@@ -70,7 +158,9 @@ const unsigned char tiles[][64] = {
   {2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2},
   {6, 7, 6, 6, 7, 7, 6, 7, 7, 6, 7, 7, 6, 6, 7, 6, 7, 7, 6, 6, 7, 7, 6, 6, 7, 6, 7, 7, 6, 6, 7, 6,
-   6, 6, 7, 6, 7, 7, 6, 7, 7, 6, 7, 6, 7, 6, 7, 7, 6, 7, 7, 6, 7, 6, 7, 6, 7, 6, 7, 7, 6, 7, 6, 7}};
+   6, 6, 7, 6, 7, 7, 6, 7, 7, 6, 7, 6, 7, 6, 7, 7, 6, 7, 7, 6, 7, 6, 7, 6, 7, 6, 7, 7, 6, 7, 6, 7},
+  {8, 8, 4, 8, 8, 4, 8, 8, 8, 4, 4, 4, 4, 4, 4, 8, 4, 4, 4, 4, 4, 4, 4, 4, 8, 4, 4, 4, 4, 4, 4, 8,
+   8, 4, 4, 4, 4, 4, 4, 8, 4, 4, 4, 4, 4, 4, 4, 4, 8, 4, 4, 4, 4, 4, 4, 8, 8, 8, 4, 8, 8, 4, 8, 8}};
 
 void draw_tile(int x, int y, int i, unsigned char mask, SDL_Renderer* renderer) {
   unsigned char* tile = (unsigned char*)tiles[i];
@@ -120,15 +210,18 @@ void draw_tile(int x, int y, int i, unsigned char mask, SDL_Renderer* renderer) 
   }
 }
 
-int get_tile(int x, int y) {
+int get_tile(int32_t x, int32_t y, HashMap* map) {
+  if(hashmap_get(map, ((uint64_t)x << 32) | (uint32_t)y) != NULL) return 1;
   float value = noise((float)x / 8, (float)y / 8);
   return value > 0.5 ? 2 : value > 0.4 ? 4 : 3;
 }
 
 int main() {
+  HashMap* map = hashmap_create(256);
+  if(!map) return 1;
   if(SDL_Init(SDL_INIT_VIDEO) != 0) return 1;
   SDL_Window* win = SDL_CreateWindow(
-    "nightmare", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 512, 512, SDL_WINDOW_SHOWN);
+    "32kb", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 512, 512, SDL_WINDOW_SHOWN);
   if(!win) {
     SDL_Quit();
     return 1;
@@ -143,6 +236,7 @@ int main() {
   char running = 1;
   int px = 0, py = 0;
   int cx = -7, cy = -7;
+  int ox = 1, oy = 0;
   while(running) {
     SDL_Event e;
     while(SDL_PollEvent(&e)) {
@@ -150,29 +244,51 @@ int main() {
         running = 0;
       else if(e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE)
         running = 0;
+      else if(e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_SPACE) {
+        int32_t cursx = px + ox, cursy = py + oy;
+        uint64_t i = ((uint64_t)cursy << 32) | (uint32_t)cursx;
+        if(hashmap_get(map, i) == 0) {
+          hashmap_put(map, i, 1);
+        } else {
+          hashmap_remove(map, i);
+        }
+      }
     }
     const Uint8* state = SDL_GetKeyboardState(NULL);
     if(state[SDL_SCANCODE_UP]) {
       py -= 1;
       cy = min(py - 4, cy);
+      ox = 0;
+      oy = -1;
     }
     if(state[SDL_SCANCODE_DOWN]) {
       py += 1;
       cy = max(py - 11, cy);
+      ox = 0;
+      oy = 1;
     }
     if(state[SDL_SCANCODE_LEFT]) {
       px -= 1;
       cx = min(px - 4, cx);
+      ox = -1;
+      oy = 0;
     }
     if(state[SDL_SCANCODE_RIGHT]) {
       px += 1;
       cx = max(px - 11, cx);
+      ox = 1;
+      oy = 0;
     }
     SDL_SetRenderDrawColor(ren, 30, 30, 30, 255);
     SDL_RenderClear(ren);
     for(int i = 0; i < 16 * 16; ++i)
-      draw_tile((i % 16) * 32, (i / 16) * 32, get_tile((i / 16) + cy, (i % 16) + cx), 0, ren);
+      draw_tile((i % 16) * 32,
+                (i / 16) * 32,
+                get_tile((i / 16) + cy, (i % 16) + cx, map),
+                (splitmix64(i + cy * 16 + cx)) & 0xf,
+                ren);
     draw_tile((px - cx) * 32, (py - cy) * 32, 0, 0, ren);
+    draw_tile((px - cx + ox) * 32, (py - cy + oy) * 32, 5, 0, ren);
     SDL_RenderPresent(ren);
     SDL_Delay(100);
   }
