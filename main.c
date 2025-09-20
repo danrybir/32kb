@@ -2,10 +2,8 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
-
 #define min(x, y) ((x) > (y) ? (y) : (x))
 #define max(x, y) ((x) > (y) ? (x) : (y))
-
 
 // world gen shtuff
 static inline uint64_t splitmix64(uint64_t x) {
@@ -15,25 +13,28 @@ static inline uint64_t splitmix64(uint64_t x) {
   x = x ^ (x >> 31);
   return x;
 }
-static inline float lerp(float a, float b, float t) {
-  return a + (b - a) * t;
+// static inline float lerp(float a, float b, float t) {
+//   return a + (b - a) * t;
+// }
+// float lerp2(float v00, float v10, float v01, float v11, float x, float y) {
+//   // aka bilinear interpolation
+//   float i0 = lerp(v00, v10, x);
+//   float i1 = lerp(v01, v11, x);
+//   return lerp(i0, i1, y);
+// }
+static inline float smoothstep(float a, float b, float t) {
+  return a + (b - a) * (3 * t * t - 2 * t * t * t);
 }
-float lerp2(float v00, float v10, float v01, float v11, float x, float y) {
-  // aka bilinear interpolation
-  float i0 = lerp(v00, v10, x);
-  float i1 = lerp(v01, v11, x);
-  return lerp(i0, i1, y);
+float smoothstep2(float v00, float v10, float v01, float v11, float x, float y) {
+  // still bilinear interpolation
+  // now with smoothstep!
+  float i0 = smoothstep(v00, v10, x);
+  float i1 = smoothstep(v01, v11, x);
+  return smoothstep(i0, i1, y);
 }
 static float u64_to_unit_float(uint64_t x) {
   uint32_t y = (uint32_t)(x >> 40);
   return (float)y / 16777216.0f;
-}
-float noise_(float x, float y) {
-  float v00 = u64_to_unit_float(splitmix64(((uint64_t)x >> 32) | (uint32_t)y));
-  float v10 = u64_to_unit_float(splitmix64(((uint64_t)(x + 1) >> 32) | (uint32_t)y));
-  float v01 = u64_to_unit_float(splitmix64(((uint64_t)x >> 32) | (uint32_t)(y + 1)));
-  float v11 = u64_to_unit_float(splitmix64(((uint64_t)(x + 1) >> 32) | (uint32_t)(y + 1)));
-  return lerp2(v00, v10, v01, v11, x - (long)x, y - (long)y);
 }
 float noise(float x, float y, uint64_t seed) {
   int32_t xi = (int32_t)floorf(x);
@@ -50,7 +51,8 @@ float noise(float x, float y, uint64_t seed) {
   float v11 = u64_to_unit_float(splitmix64(k11 + splitmix64(seed)));
   float fx = x - (float)xi;
   float fy = y - (float)yi;
-  return lerp2(v00, v10, v01, v11, fx, fy);
+  // return lerp2(v00, v10, v01, v11, fx, fy);
+  return smoothstep2(v00, v10, v01, v11, fx, fy);
 }
 
 // hashmap implementation because every good game needs one
@@ -135,33 +137,39 @@ static void hashmap_resize(HashMap* map) {
   map->capacity = new_capacity;
 }
 
+// tiles
 #define TPRT 0xE7
 const unsigned char tiles[][64] = {
+#define TILE_PLAYER 0
   {TPRT, TPRT, TPRT, TPRT, TPRT, TPRT, TPRT, TPRT, TPRT, TPRT, TPRT, 0xFF, 0xFF, TPRT, TPRT, TPRT,
    TPRT, TPRT, 0xFF, 0xFF, 0xFF, 0xFF, TPRT, TPRT, TPRT, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, TPRT,
    TPRT, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, TPRT, TPRT, TPRT, 0xFF, 0xFF, 0xFF, 0xFF, TPRT, TPRT,
    TPRT, TPRT, TPRT, 0xFF, 0xFF, TPRT, TPRT, TPRT, TPRT, TPRT, TPRT, TPRT, TPRT, TPRT, TPRT, TPRT},
+#define TILE_BLACK 1
   {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+#define TILE_GRASS 2
   {0x18, 0x10, 0x18, 0x18, 0x10, 0x10, 0x18, 0x10, 0x10, 0x18, 0x10, 0x10, 0x18, 0x18, 0x10, 0x18,
    0x10, 0x10, 0x18, 0x18, 0x10, 0x10, 0x18, 0x18, 0x10, 0x18, 0x10, 0x10, 0x18, 0x18, 0x10, 0x18,
    0x18, 0x18, 0x10, 0x18, 0x10, 0x10, 0x18, 0x10, 0x10, 0x18, 0x10, 0x18, 0x10, 0x18, 0x10, 0x10,
    0x18, 0x10, 0x10, 0x18, 0x10, 0x18, 0x10, 0x18, 0x10, 0x18, 0x10, 0x10, 0x18, 0x10, 0x18, 0x10},
+#define TILE_WATER 3
   {0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F,
    0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F,
    0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F,
    0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F},
+#define TILE_SAND 4
   {0xF8, 0xF4, 0xF8, 0xF8, 0xF4, 0xF4, 0xF8, 0xF4, 0xF4, 0xF8, 0xF4, 0xF4, 0xF8, 0xF8, 0xF4, 0xF8,
    0xF4, 0xF4, 0xF8, 0xF8, 0xF4, 0xF4, 0xF8, 0xF8, 0xF4, 0xF8, 0xF4, 0xF4, 0xF8, 0xF8, 0xF4, 0xF8,
    0xF8, 0xF8, 0xF4, 0xF8, 0xF4, 0xF4, 0xF8, 0xF4, 0xF4, 0xF8, 0xF4, 0xF8, 0xF4, 0xF8, 0xF4, 0xF4,
    0xF8, 0xF4, 0xF4, 0xF8, 0xF4, 0xF8, 0xF4, 0xF8, 0xF4, 0xF8, 0xF4, 0xF4, 0xF8, 0xF4, 0xF8, 0xF4},
+#define TILE_CURSOR 5
   {0xE0, 0xE0, TPRT, 0xE0, 0xE0, TPRT, 0xE0, 0xE0, 0xE0, TPRT, TPRT, TPRT, TPRT, TPRT, TPRT, 0xE0,
    TPRT, TPRT, TPRT, TPRT, TPRT, TPRT, TPRT, TPRT, 0xE0, TPRT, TPRT, TPRT, TPRT, TPRT, TPRT, 0xE0,
    0xE0, TPRT, TPRT, TPRT, TPRT, TPRT, TPRT, 0xE0, TPRT, TPRT, TPRT, TPRT, TPRT, TPRT, TPRT, TPRT,
    0xE0, TPRT, TPRT, TPRT, TPRT, TPRT, TPRT, 0xE0, 0xE0, 0xE0, TPRT, 0xE0, 0xE0, TPRT, 0xE0, 0xE0}};
-
 void draw_tile(int x, int y, int i, unsigned char mask, SDL_Renderer* renderer) {
   unsigned char* tile = (unsigned char*)tiles[i];
   int rot = 0;
@@ -209,10 +217,14 @@ void draw_tile(int x, int y, int i, unsigned char mask, SDL_Renderer* renderer) 
   }
 }
 
+// actual world gen
 int get_tile(int32_t x, int32_t y, HashMap* map, uint64_t seed) {
-  if(hashmap_get(map, ((uint64_t)x << 32) | (uint32_t)y) != NULL) return 1;
+  // placed blocks
+  uint64_t* placed = hashmap_get(map, ((uint64_t)x << 32) | (uint32_t)y);
+  if(placed != NULL) return *placed;
+  // terrain
   float value = noise((float)x / 8, (float)y / 8, seed);
-  return value > 0.5 ? 2 : value > 0.4 ? 4 : 3;
+  return value > 0.5 ? TILE_GRASS : value > 0.4 ? TILE_SAND : TILE_WATER;
 }
 
 int main(int argc, char** argv) {
@@ -256,7 +268,7 @@ int main(int argc, char** argv) {
         int32_t cursx = px + ox, cursy = py + oy;
         uint64_t i = ((uint64_t)cursx << 32) | (uint32_t)cursy;
         if(hashmap_get(map, i) == 0) {
-          hashmap_put(map, i, 1);
+          hashmap_put(map, i, TILE_BLACK);
         } else {
           hashmap_remove(map, i);
         }
