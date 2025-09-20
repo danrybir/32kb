@@ -135,10 +135,6 @@ static void hashmap_resize(HashMap* map) {
   map->capacity = new_capacity;
 }
 
-/*
-  vscode color picker thing
-  #e2a625ff
-*/
 #define TPRT 0xE7
 const unsigned char tiles[][64] = {
   {TPRT, TPRT, TPRT, TPRT, TPRT, TPRT, TPRT, TPRT, TPRT, TPRT, TPRT, 0xFF, 0xFF, TPRT, TPRT, TPRT,
@@ -283,7 +279,6 @@ int main(int argc, char** argv) {
       ox = 1;
       oy = 0;
     }
-    // idk what im doing wrong but im doing it wrong
     if(state[SDL_SCANCODE_UP] && get_tile(px, py - 1, map, seed) != 3) {
       py -= 1;
       cy = min(py - 4, cy);
