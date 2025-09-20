@@ -1,5 +1,5 @@
 CC = clang
-CFLAGS = -Os -ffunction-sections -fdata-sections -flto=thin -fuse-ld=lld -Wl,--gc-sections -Wl,--strip-all
+CFLAGS = -Oz -ffunction-sections -fdata-sections -flto=thin -fuse-ld=lld -Wl,--gc-sections -Wl,--strip-all -lSDL2
 
 all: clean run
 	@echo ======
