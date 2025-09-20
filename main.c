@@ -1,6 +1,7 @@
 #include <SDL2/SDL.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 #include <math.h>
 
@@ -35,7 +36,7 @@ float noise_(float x, float y) {
   float v11 = u64_to_unit_float(splitmix64(((uint64_t)(x + 1) >> 32) | (uint32_t)(y + 1)));
   return lerp2(v00, v10, v01, v11, x - (long)x, y - (long)y);
 }
-float noise(float x, float y) {
+float noise(float x, float y, uint64_t seed) {
   int32_t xi = (int32_t)floorf(x);
   int32_t yi = (int32_t)floorf(y);
   uint32_t uxi = (uint32_t)xi;
@@ -44,10 +45,10 @@ float noise(float x, float y) {
   uint64_t k10 = ((uint64_t)((uint32_t)(xi + 1)) << 32) | (uint64_t)uyi;
   uint64_t k01 = ((uint64_t)uxi << 32) | (uint64_t)((uint32_t)(yi + 1));
   uint64_t k11 = ((uint64_t)((uint32_t)(xi + 1)) << 32) | (uint64_t)((uint32_t)(yi + 1));
-  float v00 = u64_to_unit_float(splitmix64(k00));
-  float v10 = u64_to_unit_float(splitmix64(k10));
-  float v01 = u64_to_unit_float(splitmix64(k01));
-  float v11 = u64_to_unit_float(splitmix64(k11));
+  float v00 = u64_to_unit_float(splitmix64(k00 + splitmix64(seed)));
+  float v10 = u64_to_unit_float(splitmix64(k10 + splitmix64(seed)));
+  float v01 = u64_to_unit_float(splitmix64(k01 + splitmix64(seed)));
+  float v11 = u64_to_unit_float(splitmix64(k11 + splitmix64(seed)));
   float fx = x - (float)xi;
   float fy = y - (float)yi;
   return lerp2(v00, v10, v01, v11, fx, fy);
@@ -210,13 +211,15 @@ void draw_tile(int x, int y, int i, unsigned char mask, SDL_Renderer* renderer) 
   }
 }
 
-int get_tile(int32_t x, int32_t y, HashMap* map) {
+int get_tile(int32_t x, int32_t y, HashMap* map, uint64_t seed) {
   if(hashmap_get(map, ((uint64_t)x << 32) | (uint32_t)y) != NULL) return 1;
-  float value = noise((float)x / 8, (float)y / 8);
+  float value = noise((float)x / 8, (float)y / 8, seed);
   return value > 0.5 ? 2 : value > 0.4 ? 4 : 3;
 }
 
-int main() {
+int main(int argc, char** argv) {
+  uint64_t seed = 0;
+  if(argc > 1) seed = strtoull(argv[1], NULL, 10);
   HashMap* map = hashmap_create(256);
   if(!map) return 1;
   if(SDL_Init(SDL_INIT_VIDEO) != 0) return 1;
@@ -237,6 +240,13 @@ int main() {
   int px = 0, py = 0;
   int cx = -7, cy = -7;
   int ox = 1, oy = 0;
+  while(get_tile(px, py, map, seed) == 3) {
+    px += splitmix64(px + splitmix64(seed)) % 256 - 128;
+    py += splitmix64(splitmix64(px) + py + splitmix64(seed)) % 256 - 128;
+  }
+  cx = px - 7;
+  cy = py - 7;
+  printf("spawned at %d, %d\n", px, py);
   while(running) {
     SDL_Event e;
     while(SDL_PollEvent(&e)) {
@@ -255,36 +265,48 @@ int main() {
       }
     }
     const Uint8* state = SDL_GetKeyboardState(NULL);
+    if(state[SDL_SCANCODE_U]) {
+      ox = 0;
+      oy = -1;
+    }
+    if(state[SDL_SCANCODE_J]) {
+      ox = 0;
+      oy = 1;
+    }
+    if(state[SDL_SCANCODE_H]) {
+      ox = 0;
+      oy = -1;
+      ox = -1;
+      oy = 0;
+    }
+    if(state[SDL_SCANCODE_K]) {
+      ox = 0;
+      oy = -1;
+      ox = 1;
+      oy = 0;
+    }
     if(state[SDL_SCANCODE_UP]) {
       py -= 1;
       cy = min(py - 4, cy);
-      ox = 0;
-      oy = -1;
     }
     if(state[SDL_SCANCODE_DOWN]) {
       py += 1;
       cy = max(py - 11, cy);
-      ox = 0;
-      oy = 1;
     }
     if(state[SDL_SCANCODE_LEFT]) {
       px -= 1;
       cx = min(px - 4, cx);
-      ox = -1;
-      oy = 0;
     }
     if(state[SDL_SCANCODE_RIGHT]) {
       px += 1;
       cx = max(px - 11, cx);
-      ox = 1;
-      oy = 0;
     }
     SDL_SetRenderDrawColor(ren, 30, 30, 30, 255);
     SDL_RenderClear(ren);
     for(int i = 0; i < 16 * 16; ++i)
       draw_tile((i % 16) * 32,
                 (i / 16) * 32,
-                get_tile((i / 16) + cy, (i % 16) + cx, map),
+                get_tile((i / 16) + cy, (i % 16) + cx, map, seed),
                 (splitmix64(i + cy * 16 + cx)) & 0xf,
                 ren);
     draw_tile((px - cx) * 32, (py - cy) * 32, 0, 0, ren);

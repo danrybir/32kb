@@ -14,4 +14,4 @@ main:
 
 run: main
 	@printf \\n======\\n
-	@./main
+	@./main 1
