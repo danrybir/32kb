@@ -5,6 +5,9 @@
 #include <stdlib.h>
 #include <math.h>
 
+#define min(x, y) x > y ? y : x
+#define max(x, y) x > y ? x : y
+
 // world gen shtuff
 static inline uint64_t splitmix64(uint64_t x) {
   x += 0x9e3779b97f4a7c15ULL;
@@ -145,7 +148,8 @@ int main() {
     return 1;
   }
   char running = 1;
-  int cx = 3, cy = 3;
+  int px = 0, py = 0;
+  int cx = 0, cy = 0;
   while(running) {
     SDL_Event e;
     while(SDL_PollEvent(&e)) {
@@ -154,12 +158,32 @@ int main() {
       else if(e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE)
         running = 0;
     }
+    const Uint8* state = SDL_GetKeyboardState(NULL);
+    if(state[SDL_SCANCODE_UP]) {
+      if(py > 0) py -= 1;
+      cy = max(min(py - 4, cy), 0);
+    }
+    if(state[SDL_SCANCODE_DOWN]) {
+      if(py < wh - 1) py += 1;
+      cy = max(py - 11, cy);
+      cy = min(cy, wh - 16);
+    }
+    if(state[SDL_SCANCODE_LEFT]) {
+      if(px > 0) px -= 1;
+      cx = max(min(px - 4, cx), 0);
+    }
+    if(state[SDL_SCANCODE_RIGHT]) {
+      if(px < ww - 1) px += 1;
+      cx = max(px - 11, cx);
+      cx = min(cx, ww - 16);
+    }
     SDL_SetRenderDrawColor(ren, 30, 30, 30, 255);
     SDL_RenderClear(ren);
     for(int i = 0; i < 16 * 16; ++i)
       draw_tile((i % 16) * 32, (i / 16) * 32, world[((i / 16) + cy) * ww + (i % 16) + cx], 0, ren);
+    draw_tile((px - cx) * 32, (py - cy) * 32, 0, 0, ren);
     SDL_RenderPresent(ren);
-    SDL_Delay(16);
+    SDL_Delay(100);
   }
   free(world);
   SDL_DestroyRenderer(ren);
