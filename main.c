@@ -3,8 +3,9 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#define min(x, y) x > y ? y : x
-#define max(x, y) x > y ? x : y
+#define min(x, y) ((x) > (y) ? (y) : (x))
+#define max(x, y) ((x) > (y) ? (x) : (y))
+
 
 // world gen shtuff
 static inline uint64_t splitmix64(uint64_t x) {
@@ -272,14 +273,10 @@ int main(int argc, char** argv) {
       oy = 1;
     }
     if(state[SDL_SCANCODE_H]) {
-      ox = 0;
-      oy = -1;
       ox = -1;
       oy = 0;
     }
     if(state[SDL_SCANCODE_K]) {
-      ox = 0;
-      oy = -1;
       ox = 1;
       oy = 0;
     }
@@ -305,7 +302,7 @@ int main(int argc, char** argv) {
     for(int i = 0; i < 16 * 16; ++i)
       draw_tile((i % 16) * 32,
                 (i / 16) * 32,
-                get_tile((i / 16) + cy, (i % 16) + cx, map, seed),
+                get_tile((i % 16) + cx, (i / 16) + cy, map, seed),
                 (splitmix64(i + cy * 16 + cx)) & 0xf,
                 ren);
     draw_tile((px - cx) * 32, (py - cy) * 32, 0, 0, ren);
