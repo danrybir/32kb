@@ -15,8 +15,20 @@ int main() {
     SDL_Quit();
     return 1;
   }
-  SDL_RenderPresent(ren);
-  SDL_Delay(3000);
+  char running = 1;
+  while(running) {
+    SDL_Event e;
+    while(SDL_PollEvent(&e)) {
+      if(e.type == SDL_QUIT)
+        running = 0;
+      else if(e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE)
+        running = 0;
+    }
+    SDL_SetRenderDrawColor(ren, 30, 30, 30, 255);
+    SDL_RenderClear(ren);
+    SDL_RenderPresent(ren);
+    SDL_Delay(16);
+  }
   SDL_DestroyRenderer(ren);
   SDL_DestroyWindow(win);
   SDL_Quit();
