@@ -1,5 +1,4 @@
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_render.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -37,12 +36,14 @@ float noise_(float x, float y) {
   return lerp2(v00, v10, v01, v11, x - (long)x, y - (long)y);
 }
 float noise(float x, float y) {
-  uint32_t xi = (uint32_t)floorf(x);
-  uint32_t yi = (uint32_t)floorf(y);
-  uint64_t k00 = ((uint64_t)xi << 32) | (uint64_t)yi;
-  uint64_t k10 = ((uint64_t)(xi + 1) << 32) | (uint64_t)yi;
-  uint64_t k01 = ((uint64_t)xi << 32) | (uint64_t)(yi + 1);
-  uint64_t k11 = ((uint64_t)(xi + 1) << 32) | (uint64_t)(yi + 1);
+  int32_t xi = (int32_t)floorf(x);
+  int32_t yi = (int32_t)floorf(y);
+  uint32_t uxi = (uint32_t)xi;
+  uint32_t uyi = (uint32_t)yi;
+  uint64_t k00 = ((uint64_t)uxi << 32) | (uint64_t)uyi;
+  uint64_t k10 = ((uint64_t)((uint32_t)(xi + 1)) << 32) | (uint64_t)uyi;
+  uint64_t k01 = ((uint64_t)uxi << 32) | (uint64_t)((uint32_t)(yi + 1));
+  uint64_t k11 = ((uint64_t)((uint32_t)(xi + 1)) << 32) | (uint64_t)((uint32_t)(yi + 1));
   float v00 = u64_to_unit_float(splitmix64(k00));
   float v10 = u64_to_unit_float(splitmix64(k10));
   float v01 = u64_to_unit_float(splitmix64(k01));
@@ -55,10 +56,10 @@ float noise(float x, float y) {
 
 /*
   vscode color picker thing
-  #31e4c6ff
+  #e2a625ff
 */
 const unsigned long colors[] = {
-  0x000000ff, 0x1adb14ff, 0x31e4c6ff, 0xffffffff, 0x00000000, 0x168812ff};
+  0x000000ff, 0x1adb14ff, 0x31e4c6ff, 0xffffffff, 0x00000000, 0x168812ff, 0xe2cf25ff, 0xe2a625ff};
 const unsigned char tiles[][64] = {
   {4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3, 3, 4, 4, 4, 4, 4, 3, 3, 3, 3, 4, 4, 4, 3, 3, 3, 3, 3, 3, 4,
    4, 3, 3, 3, 3, 3, 3, 4, 4, 4, 3, 3, 3, 3, 4, 4, 4, 4, 4, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4},
@@ -67,7 +68,9 @@ const unsigned char tiles[][64] = {
   {1, 5, 1, 1, 5, 5, 1, 5, 5, 1, 5, 5, 1, 1, 5, 1, 5, 5, 1, 1, 5, 5, 1, 1, 5, 1, 5, 5, 1, 1, 5, 1,
    1, 1, 5, 1, 5, 5, 1, 5, 5, 1, 5, 1, 5, 1, 5, 5, 1, 5, 5, 1, 5, 1, 5, 1, 5, 1, 5, 5, 1, 5, 1, 5},
   {2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-   2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2}};
+   2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2},
+  {6, 7, 6, 6, 7, 7, 6, 7, 7, 6, 7, 7, 6, 6, 7, 6, 7, 7, 6, 6, 7, 7, 6, 6, 7, 6, 7, 7, 6, 6, 7, 6,
+   6, 6, 7, 6, 7, 7, 6, 7, 7, 6, 7, 6, 7, 6, 7, 7, 6, 7, 7, 6, 7, 6, 7, 6, 7, 6, 7, 7, 6, 7, 6, 7}};
 
 void draw_tile(int x, int y, int i, unsigned char mask, SDL_Renderer* renderer) {
   unsigned char* tile = (unsigned char*)tiles[i];
@@ -117,23 +120,13 @@ void draw_tile(int x, int y, int i, unsigned char mask, SDL_Renderer* renderer) 
   }
 }
 
+int get_tile(int x, int y) {
+  float value = noise((float)x / 8, (float)y / 8);
+  return value > 0.5 ? 2 : value > 0.4 ? 4 : 3;
+}
 
 int main() {
   if(SDL_Init(SDL_INIT_VIDEO) != 0) return 1;
-  // world gen
-  unsigned char* world;
-  int ww = 512, wh = 512;
-  world = malloc(ww * wh);
-  if(!world) return 1;
-  for(int y = 0; y < wh; ++y) {
-    printf("generating row %d/%d...", y + 1, wh);
-    for(int x = 0; x < ww; ++x) {
-      int i = y * ww + x;
-      float value = noise((float)x / 8, (float)y / 8);
-      world[i] = value > 0.5 ? 2 : 3;
-    }
-    printf(" done\n");
-  }
   SDL_Window* win = SDL_CreateWindow(
     "nightmare", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 512, 512, SDL_WINDOW_SHOWN);
   if(!win) {
@@ -149,7 +142,7 @@ int main() {
   }
   char running = 1;
   int px = 0, py = 0;
-  int cx = 0, cy = 0;
+  int cx = -7, cy = -7;
   while(running) {
     SDL_Event e;
     while(SDL_PollEvent(&e)) {
@@ -160,32 +153,29 @@ int main() {
     }
     const Uint8* state = SDL_GetKeyboardState(NULL);
     if(state[SDL_SCANCODE_UP]) {
-      if(py > 0) py -= 1;
-      cy = max(min(py - 4, cy), 0);
+      py -= 1;
+      cy = min(py - 4, cy);
     }
     if(state[SDL_SCANCODE_DOWN]) {
-      if(py < wh - 1) py += 1;
+      py += 1;
       cy = max(py - 11, cy);
-      cy = min(cy, wh - 16);
     }
     if(state[SDL_SCANCODE_LEFT]) {
-      if(px > 0) px -= 1;
-      cx = max(min(px - 4, cx), 0);
+      px -= 1;
+      cx = min(px - 4, cx);
     }
     if(state[SDL_SCANCODE_RIGHT]) {
-      if(px < ww - 1) px += 1;
+      px += 1;
       cx = max(px - 11, cx);
-      cx = min(cx, ww - 16);
     }
     SDL_SetRenderDrawColor(ren, 30, 30, 30, 255);
     SDL_RenderClear(ren);
     for(int i = 0; i < 16 * 16; ++i)
-      draw_tile((i % 16) * 32, (i / 16) * 32, world[((i / 16) + cy) * ww + (i % 16) + cx], 0, ren);
+      draw_tile((i % 16) * 32, (i / 16) * 32, get_tile((i / 16) + cy, (i % 16) + cx), 0, ren);
     draw_tile((px - cx) * 32, (py - cy) * 32, 0, 0, ren);
     SDL_RenderPresent(ren);
     SDL_Delay(100);
   }
-  free(world);
   SDL_DestroyRenderer(ren);
   SDL_DestroyWindow(win);
   SDL_Quit();
