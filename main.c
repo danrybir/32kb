@@ -1,3 +1,6 @@
+// the code is optimized for size, not speed or stability
+// expect errors, lag etc
+
 #include <SDL2/SDL.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -62,70 +65,91 @@ typedef struct {
   size_t capacity;
   size_t size;
 } HashMap;
-static void hashmap_resize(HashMap* map);
+void hashmap_put(HashMap* map, uint64_t key, uint64_t value);
 HashMap* hashmap_create(size_t initial_capacity) {
   HashMap* map = malloc(sizeof(HashMap));
   map->capacity = initial_capacity;
   map->size = 0;
-  map->entries = calloc(map->capacity, sizeof(Entry));
+  map->entries = calloc(initial_capacity, sizeof(Entry));
   return map;
-}
-void hashmap_put(HashMap* map, uint64_t key, uint64_t value) {
-  if((double)map->size / map->capacity > 0.7) hashmap_resize(map);
-  uint64_t hash = splitmix64(key);
-  size_t idx = hash % map->capacity;
-  while(map->entries[idx].state == USED) {
-    if(map->entries[idx].key == key) {
-      map->entries[idx].value = value;
-      return;
-    }
-    idx = (idx + 1) % map->capacity;
-  }
-  map->entries[idx].key = key;
-  map->entries[idx].value = value;
-  map->entries[idx].state = USED;
-  map->size++;
-}
-uint64_t* hashmap_get(HashMap* map, uint64_t key) {
-  uint64_t hash = splitmix64(key);
-  size_t idx = hash % map->capacity;
-  while(map->entries[idx].state != EMPTY) {
-    if(map->entries[idx].state == USED && map->entries[idx].key == key)
-      return &map->entries[idx].value;
-    idx = (idx + 1) % map->capacity;
-  }
-  return NULL;
-}
-void hashmap_remove(HashMap* map, uint64_t key) {
-  uint64_t hash = splitmix64(key);
-  size_t idx = hash % map->capacity;
-  while(map->entries[idx].state != EMPTY) {
-    if(map->entries[idx].state == USED && map->entries[idx].key == key) {
-      map->entries[idx].state = DELETED;
-      map->size--;
-      return;
-    }
-    idx = (idx + 1) % map->capacity;
-  }
 }
 void hashmap_free(HashMap* map) {
   free(map->entries);
   free(map);
 }
-static void hashmap_resize(HashMap* map) {
-  size_t new_capacity = map->capacity * 2;
-  Entry* new_entries = calloc(new_capacity, sizeof(Entry));
+static void hashmap_resize(HashMap* map, size_t new_capacity) {
+  Entry* old_entries = map->entries;
+  size_t old_capacity = map->capacity;
+  map->entries = calloc(new_capacity, sizeof(Entry));
+  map->capacity = new_capacity;
+  map->size = 0;
+  for(size_t i = 0; i < old_capacity; i++) {
+    if(old_entries[i].state == USED) hashmap_put(map, old_entries[i].key, old_entries[i].value);
+  }
+  free(old_entries);
+}
+uint64_t* hashmap_get(HashMap* map, uint64_t key) {
+  if(map->capacity == 0) return NULL;
+  uint64_t hash = splitmix64(key);
+  size_t index = hash % map->capacity;
   for(size_t i = 0; i < map->capacity; i++) {
-    if(map->entries[i].state == USED) {
-      uint64_t hash = splitmix64(map->entries[i].key);
-      size_t idx = hash % new_capacity;
-      while(new_entries[idx].state == USED) idx = (idx + 1) % new_capacity;
-      new_entries[idx] = map->entries[i];
+    size_t idx = (index + i) % map->capacity;
+    if(map->entries[idx].state == EMPTY) { return NULL; }
+    if(map->entries[idx].state == USED && map->entries[idx].key == key) {
+      return &map->entries[idx].value;
     }
   }
-  free(map->entries);
-  map->entries = new_entries;
-  map->capacity = new_capacity;
+  return NULL;
+}
+void hashmap_put(HashMap* map, uint64_t key, uint64_t value) {
+  if(map->capacity == 0) return;
+  if(map->size * 10 >= map->capacity * 7) hashmap_resize(map, map->capacity * 2);
+  uint64_t hash = splitmix64(key);
+  size_t index = hash % map->capacity;
+  size_t first_deleted = map->capacity;
+  for(size_t i = 0; i < map->capacity; i++) {
+    size_t idx = (index + i) % map->capacity;
+    if(map->entries[idx].state == EMPTY) { break; }
+    if(map->entries[idx].state == DELETED && first_deleted == map->capacity) {
+      first_deleted = idx;
+    }
+    if(map->entries[idx].state == USED && map->entries[idx].key == key) {
+      map->entries[idx].value = value;
+      return;
+    }
+  }
+  size_t target_idx = first_deleted;
+  if(first_deleted == map->capacity) {
+    target_idx = index;
+    for(size_t i = 0; i < map->capacity; i++) {
+      size_t idx = (index + i) % map->capacity;
+      if(map->entries[idx].state != USED) {
+        target_idx = idx;
+        break;
+      }
+    }
+  }
+  map->entries[target_idx].key = key;
+  map->entries[target_idx].value = value;
+  map->entries[target_idx].state = USED;
+  map->size++;
+}
+void hashmap_remove(HashMap* map, uint64_t key) {
+  if(map->capacity == 0) return;
+  uint64_t hash = splitmix64(key);
+  size_t index = hash % map->capacity;
+  for(size_t i = 0; i < map->capacity; i++) {
+    size_t idx = (index + i) % map->capacity;
+    if(map->entries[idx].state == EMPTY) { return; }
+    if(map->entries[idx].state == USED && map->entries[idx].key == key) {
+      map->entries[idx].state = DELETED;
+      map->size--;
+      break;
+    }
+  }
+  if(map->capacity > 1 && map->size * 10 <= map->capacity) {
+    hashmap_resize(map, map->capacity / 2);
+  }
 }
 
 // tiles
