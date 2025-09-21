@@ -359,12 +359,12 @@ int main(int argc, char** argv) {
     SDL_RenderClear(ren);
     int icx = (int)cx;
     int icy = (int)cy;
-    for(int i = 0; i < 16 * 16; ++i) {
-      int tile = get_tile((i % 16) + icx, (i / 16) + icy, map, seed, 1);
-      draw_tile((i % 16) * 32 - (int)(cx * 32) % 32,
-                (i / 16) * 32 - (int)(cy * 32) % 32,
+    for(int i = 0; i < 18 * 18; ++i) {
+      int tile = get_tile((i % 18) + icx - 1, (i / 18) + icy - 1, map, seed, 1);
+      draw_tile((i % 18 - 1) * 32 - (int)(cx * 32) % 32,
+                (i / 18 - 1) * 32 - (int)(cy * 32) % 32,
                 tile,
-                (splitmix64(i + icy * 16 + icx)) & tile_masks[tile],
+                (splitmix64(i + (icy - 1) * 18 + icx - 1)) & tile_masks[tile],
                 ren);
     }
     draw_tile((px - cx) * 32, (py - cy) * 32, TILE_PLAYER, 0, ren);
