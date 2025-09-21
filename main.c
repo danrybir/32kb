@@ -313,7 +313,7 @@ int main(int argc, char** argv) {
       else if(e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE)
         running = 0;
       else if(e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_SPACE) {
-        int32_t cursx = (int)(px + ox), cursy = (int)(py + oy);
+        int32_t cursx = (int)(roundf(px) + ox), cursy = (int)(round(py) + oy);
         uint64_t i = ((uint64_t)cursx << 32) | (uint32_t)cursy;
         if(hashmap_get(map, i) == 0) {
           hashmap_put(map, i, TILE_BLACK);
@@ -341,20 +341,22 @@ int main(int argc, char** argv) {
     }
     if(state[SDL_SCANCODE_UP]) {
       py -= moveSpeed;
-      cy = fminf(py - 4, cy);
+      // cy = fminf(py - 4, cy);
     }
     if(state[SDL_SCANCODE_DOWN]) {
       py += moveSpeed;
-      cy = fmaxf(py - 11, cy);
+      // cy = fmaxf(py - 11, cy);
     }
     if(state[SDL_SCANCODE_LEFT]) {
       px -= moveSpeed;
-      cx = fminf(px - 4, cx);
+      // cx = fminf(px - 4, cx);
     }
     if(state[SDL_SCANCODE_RIGHT]) {
       px += moveSpeed;
-      cx = fmaxf(px - 11, cx);
+      // cx = fmaxf(px - 11, cx);
     }
+    cx += (px - 7.5 - cx) / 10;
+    cy += (py - 7.5 - cy) / 10;
     SDL_SetRenderDrawColor(ren, 30, 30, 30, 255);
     SDL_RenderClear(ren);
     int icx = (int)cx;
@@ -368,7 +370,7 @@ int main(int argc, char** argv) {
                 ren);
     }
     draw_tile((px - cx) * 32, (py - cy) * 32, TILE_PLAYER, 0, ren);
-    draw_tile((px - cx + ox) * 32, (py - cy + oy) * 32, TILE_CURSOR, 0, ren);
+    draw_tile((roundf(px) - cx + ox) * 32, (roundf(py) - cy + oy) * 32, TILE_CURSOR, 0, ren);
     SDL_RenderPresent(ren);
     SDL_Delay(16);
   }
