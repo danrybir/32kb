@@ -7,7 +7,7 @@ all: clean run
 	@stat -c%s 32kb 32kbupx main.c | awk '{printf("%.2f KiB\n",$$1/1024)}'
 
 clean:
-	rm -rf 32kb
+	rm -rf 32kb 32kbupx
 
 32kb:
 	$(CC) $(CFLAGS) main.c -o 32kb

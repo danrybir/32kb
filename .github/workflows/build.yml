@@ -1,4 +1,4 @@
-name: Build and Test
+name: build
 
 on:
   push:
@@ -24,6 +24,11 @@ jobs:
       run: |
         make 32kb
         
+    - name: artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: 32kb-uncompressed
+        path: 32kb
     - name: artifact
       uses: actions/upload-artifact@v4
       with:

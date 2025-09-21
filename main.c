@@ -202,6 +202,7 @@ const unsigned char tiles[][64] = {
    0x64, 0x84, 0x64, 0x84, 0x64, 0x84, 0x64, 0x84, 0x64, 0x84, 0x64, 0x84, 0x64, 0x84, 0x64, 0x84,
    0x84, 0x84, 0x64, 0x84, 0x84, 0x84, 0x64, 0x84, 0x64, 0x84, 0x64, 0x84, 0x84, 0x64, 0x84, 0x64}};
 const unsigned char tile_masks[] = {0, 0, 0, 15, 15, 15, 15, 15, 15};
+const unsigned char tile_flags[] = {0, 0, 0, 0, 1, 0, 0, 0, 1};
 void draw_tile(int x, int y, int i, unsigned char mask, SDL_Renderer* renderer) {
   // 0000abcd
   // a - rotate 90deg ccw
@@ -298,7 +299,7 @@ int main(int argc, char** argv) {
   float cx, cy;
   int ox = 1, oy = 0;
   int try = 0;
-  while(get_tile(px, py, map, seed, 0) == TILE_BLACK) {
+  while(tile_flags[get_tile(px, py, map, seed, 0)] & 1) {
     ++try;
     px += splitmix64((uint64_t)(int32_t)(px + splitmix64(seed) + try)) % 256 - 128;
     py += splitmix64((uint64_t)(int32_t)(splitmix64(px) + py + splitmix64(seed) + try)) % 256 - 128;
@@ -341,19 +342,23 @@ int main(int argc, char** argv) {
       ox = 1;
       oy = 0;
     }
-    if(state[SDL_SCANCODE_UP]) {
+    if(state[SDL_SCANCODE_UP] &&
+       !(tile_flags[get_tile(roundf(px), roundf(py - moveSpeed), map, seed, 1)] & 1)) {
       py -= moveSpeed;
       // cy = fminf(py - 4, cy);
     }
-    if(state[SDL_SCANCODE_DOWN]) {
+    if(state[SDL_SCANCODE_DOWN] &&
+       !(tile_flags[get_tile(roundf(px), roundf(py + moveSpeed), map, seed, 1)] & 1)) {
       py += moveSpeed;
       // cy = fmaxf(py - 11, cy);
     }
-    if(state[SDL_SCANCODE_LEFT]) {
+    if(state[SDL_SCANCODE_LEFT] &&
+       !(tile_flags[get_tile(roundf(px - moveSpeed), roundf(py), map, seed, 1)] & 1)) {
       px -= moveSpeed;
       // cx = fminf(px - 4, cx);
     }
-    if(state[SDL_SCANCODE_RIGHT]) {
+    if(state[SDL_SCANCODE_RIGHT] &&
+       !(tile_flags[get_tile(roundf(px + moveSpeed), roundf(py), map, seed, 1)] & 1)) {
       px += moveSpeed;
       // cx = fmaxf(px - 11, cx);
     }

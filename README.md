@@ -28,6 +28,7 @@ a little 2d top-down platformer game thing that, when compiled, stays below 32 k
 ## featues
 
 - simple procedural terrain
+- somewhat working collisions
 - block placement and unplacement
 - hashmap, apparently
 - rgb332 for tiles
