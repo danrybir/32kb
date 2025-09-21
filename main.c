@@ -2,6 +2,7 @@
 // expect errors, lag etc
 
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_mouse.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -291,8 +292,8 @@ int main(int argc, char** argv) {
     return 1;
   }
   char running = 1;
-  int px = 0, py = 0;
-  int cx = -7, cy = -7;
+  float px = 0, py = 0;
+  float cx = -7, cy = -7;
   int ox = 1, oy = 0;
   int try = 0;
   while(get_tile(px, py, map, seed, 0) == TILE_BLACK) {
@@ -302,7 +303,8 @@ int main(int argc, char** argv) {
   }
   cx = px - 7;
   cy = py - 7;
-  printf("spawned at %d, %d\n", px, py);
+  printf("spawned at %f, %f\n", px, py);
+  const float moveSpeed = 1. / 6;
   while(running) {
     SDL_Event e;
     while(SDL_PollEvent(&e)) {
@@ -311,7 +313,7 @@ int main(int argc, char** argv) {
       else if(e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE)
         running = 0;
       else if(e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_SPACE) {
-        int32_t cursx = px + ox, cursy = py + oy;
+        int32_t cursx = (int)(px + ox), cursy = (int)(py + oy);
         uint64_t i = ((uint64_t)cursx << 32) | (uint32_t)cursy;
         if(hashmap_get(map, i) == 0) {
           hashmap_put(map, i, TILE_BLACK);
@@ -338,32 +340,37 @@ int main(int argc, char** argv) {
       oy = 0;
     }
     if(state[SDL_SCANCODE_UP]) {
-      py -= 1;
-      cy = min(py - 4, cy);
+      py -= moveSpeed;
+      cy = fminf(py - 4, cy);
     }
     if(state[SDL_SCANCODE_DOWN]) {
-      py += 1;
-      cy = max(py - 11, cy);
+      py += moveSpeed;
+      cy = fmaxf(py - 11, cy);
     }
     if(state[SDL_SCANCODE_LEFT]) {
-      px -= 1;
-      cx = min(px - 4, cx);
+      px -= moveSpeed;
+      cx = fminf(px - 4, cx);
     }
     if(state[SDL_SCANCODE_RIGHT]) {
-      px += 1;
-      cx = max(px - 11, cx);
+      px += moveSpeed;
+      cx = fmaxf(px - 11, cx);
     }
     SDL_SetRenderDrawColor(ren, 30, 30, 30, 255);
     SDL_RenderClear(ren);
+    int icx = (int)cx;
+    int icy = (int)cy;
     for(int i = 0; i < 16 * 16; ++i) {
-      int tile = get_tile((i % 16) + cx, (i / 16) + cy, map, seed, 1);
-      draw_tile(
-        (i % 16) * 32, (i / 16) * 32, tile, (splitmix64(i + cy * 16 + cx)) & tile_masks[tile], ren);
+      int tile = get_tile((i % 16) + icx, (i / 16) + icy, map, seed, 1);
+      draw_tile((i % 16) * 32 - (int)(cx * 32) % 32,
+                (i / 16) * 32 - (int)(cy * 32) % 32,
+                tile,
+                (splitmix64(i + icy * 16 + icx)) & tile_masks[tile],
+                ren);
     }
     draw_tile((px - cx) * 32, (py - cy) * 32, TILE_PLAYER, 0, ren);
     draw_tile((px - cx + ox) * 32, (py - cy + oy) * 32, TILE_CURSOR, 0, ren);
     SDL_RenderPresent(ren);
-    SDL_Delay(100);
+    SDL_Delay(16);
   }
   SDL_DestroyRenderer(ren);
   SDL_DestroyWindow(win);
