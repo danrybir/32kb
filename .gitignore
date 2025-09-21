@@ -1,4 +1,4 @@
 main
 tile.png
-convert.py
+*.py
 .venv

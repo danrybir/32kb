@@ -1,0 +1,8 @@
+[ ] health
+[ ] hunger
+[ ] inventory
+[ ] entities
+[ ] actually good world gen
+[ ] sound (if i hate myself)
+
+[x] stay under 32kb
