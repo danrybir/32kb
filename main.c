@@ -267,7 +267,9 @@ int get_tile(int32_t x, int32_t y, HashMap* map, uint64_t seed, char check_chang
   return elevation > 0.5
            ? (stonemap > 0.3 && elevation > 0.6
                 ? TILE_STONE
-                : (woodmap > 0.6 && stonemap < 0.05 && elevation > 0.6 ? TILE_WOOD : TILE_GRASS))
+                : (woodmap > 0.5 && stonemap < 0.05 && elevation < 0.85 && elevation > 0.45
+                     ? TILE_WOOD
+                     : (stonemap < 0.3 && elevation > 0.9 ? TILE_DIRT : TILE_GRASS)))
          : elevation > 0.4 ? TILE_SAND
                            : TILE_WATER;
 }
