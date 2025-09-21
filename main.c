@@ -2,7 +2,6 @@
 // expect errors, lag etc
 
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_mouse.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>

@@ -2,6 +2,9 @@
 
 a little 2d top-down platformer game thing that, when compiled, stays below 32 kilobytes. _(at least, on linux arm64)_
 
+> [!NOTE]
+> despite me starting working on this just yesterday i think it already needs a rewrite because i screwed up most things
+
 ## build
 
 `make 32kb`. that's basically it
