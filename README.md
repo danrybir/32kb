@@ -4,7 +4,7 @@ a little 2d top-down platformer game thing that, when compiled, stays below 32 k
 
 ## build
 
-`make main`. that's basically it
+`make 32kb`. that's basically it
 
 ### dependencies
 
