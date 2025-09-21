@@ -1,0 +1,31 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: checkout
+      uses: actions/checkout@v4
+    
+    - name: dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang lld upx libsdl2-dev
+        
+    - name: build
+      run: |
+        make 32kb
+        
+    - name: artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: 32kb-upx
+        path: 32kbupx
