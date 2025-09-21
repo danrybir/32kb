@@ -4,16 +4,16 @@ CFLAGS = -Oz -ffunction-sections -fdata-sections -flto=full -fuse-ld=lld -Wl,--g
 all: clean run
 	@echo ======
 	@echo
-	@stat -c%s main mainupx main.c | awk '{printf("%.2f KiB\n",$$1/1024)}'
+	@stat -c%s 32kb 32kbupx main.c | awk '{printf("%.2f KiB\n",$$1/1024)}'
 
 clean:
-	rm -rf main
+	rm -rf 32kb
 
-main:
-	$(CC) $(CFLAGS) main.c -o main
-	strip -s main
-	upx --best -omainupx -f --ultra-brute main
+32kb:
+	$(CC) $(CFLAGS) main.c -o 32kb
+	strip -s 32kb
+	upx --best -o32kbupx -f --ultra-brute 32kb
 
-run: main
+run: 32kb
 	@printf \\n======\\n
-	@./main
+	@./32kb

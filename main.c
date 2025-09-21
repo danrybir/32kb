@@ -295,7 +295,7 @@ int main(int argc, char** argv) {
   }
   char running = 1;
   float px = 0, py = 0;
-  float cx = -7, cy = -7;
+  float cx, cy;
   int ox = 1, oy = 0;
   int try = 0;
   while(get_tile(px, py, map, seed, 0) == TILE_BLACK) {
@@ -303,8 +303,8 @@ int main(int argc, char** argv) {
     px += splitmix64((uint64_t)(int32_t)(px + splitmix64(seed) + try)) % 256 - 128;
     py += splitmix64((uint64_t)(int32_t)(splitmix64(px) + py + splitmix64(seed) + try)) % 256 - 128;
   }
-  cx = px - 7;
-  cy = py - 7;
+  cx = px - 7.5;
+  cy = py - 7.5;
   printf("spawned at %f, %f\n", px, py);
   const float moveSpeed = 1. / 6;
   while(running) {
