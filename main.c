@@ -13,15 +13,6 @@ static inline uint64_t splitmix64(uint64_t x) {
   x = x ^ (x >> 31);
   return x;
 }
-// static inline float lerp(float a, float b, float t) {
-//   return a + (b - a) * t;
-// }
-// float lerp2(float v00, float v10, float v01, float v11, float x, float y) {
-//   // aka bilinear interpolation
-//   float i0 = lerp(v00, v10, x);
-//   float i1 = lerp(v01, v11, x);
-//   return lerp(i0, i1, y);
-// }
 static inline float smoothstep(float a, float b, float t) {
   return a + (b - a) * (3 * t * t - 2 * t * t * t);
 }
@@ -212,10 +203,7 @@ void draw_tile(int x, int y, int i, unsigned char mask, SDL_Renderer* renderer) 
         sx = oy;
         sy = 7 - ox;
         break;
-      // case 2: // 180deg
-      //   sx = 7 - ox;
-      //   sy = 7 - oy;
-      //   break;
+      // 180deg is flipH+V
       case 3: // 90deg CCW
         sx = 7 - oy;
         sy = ox;
